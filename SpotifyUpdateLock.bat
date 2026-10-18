@@ -339,7 +339,7 @@ echo UNLOCK COMPLETE
 echo ============================================================
 echo.
 echo The SpotifyUpdateLock firewall rule was removed and the saved original
-necho ACL was restored when available. No registry policy keys were touched.
+echo ACL was restored when available. No registry policy keys were touched.
 echo.
 pause
 goto :MENU
