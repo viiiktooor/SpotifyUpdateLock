@@ -178,7 +178,35 @@ function Act($name){
     if(!(Enter-One)){ERR 'Another action is already running.';return $false}
     try{$r=Read-State;$script:S=$r.Data;$script:SS=$r.Status;$script:SV=$r.Version;if($script:SS -eq 'Unsupported' -and $name -ne 'STATUS'){throw 'State was written by a newer version; nothing changed.'};switch($name){PREPARE{return Prepare};LOCK{return Lock-Update};STATUS{return Status};UNLOCK{return Unlock}}}catch{ERR $_.Exception.Message;INFO 'Run STATUS for diagnostics.';$false}finally{Exit-One}
 }
-function Menu {while($true){Clear-Host;Write-Host "Spotify Update Lock`n`n1 PREPARE  2 LOCK  3 STATUS  4 UNLOCK  5 EXIT";switch(Read-Host 'Choose'){1{[void](Act PREPARE)}2{[void](Act LOCK)}3{[void](Act STATUS)}4{[void](Act UNLOCK)}5{return}};[void](Read-Host 'Enter to continue')}}
+function Menu-Option($key,$name,$line1,$line2){
+    Write-Host "  ${key}. " -NoNewline -ForegroundColor Cyan; Write-Host $name -NoNewline -ForegroundColor Yellow; Write-Host "  $line1"
+    if($line2){Write-Host "               $line2" -ForegroundColor DarkGray}
+    Write-Host ''
+}
+function Menu {
+    while($true){
+        Clear-Host
+        Write-Host ('='*64) -ForegroundColor Cyan
+        Write-Host '  Spotify Update Lock' -ForegroundColor White
+        Write-Host ('='*64) -ForegroundColor Cyan
+        Write-Host ''
+        Menu-Option 1 'PREPARE' 'Use BEFORE installing the Spotify version you want.' 'Locks the updater and blocks Spotify from the network.'
+        Menu-Option 2 'LOCK   ' 'Use AFTER the installation has finished.' 'Confirms the lock and restores normal network access.'
+        Menu-Option 3 'STATUS ' 'Show the current state. Changes nothing.' ''
+        Menu-Option 4 'UNLOCK ' 'Undo everything this tool changed (updates work again).' ''
+        Menu-Option 5 'EXIT   ' 'Close this window.' ''
+        switch(Read-Host 'Choose an option [1-5]'){
+            '1'{[void](Act PREPARE)}
+            '2'{[void](Act LOCK)}
+            '3'{[void](Act STATUS)}
+            '4'{[void](Act UNLOCK)}
+            '5'{return}
+            default{Write-Host 'Invalid option. Type a number from 1 to 5.' -ForegroundColor Yellow}
+        }
+        Write-Host ''
+        [void](Read-Host 'Press Enter to return to the menu')
+    }
+}
 
 $script:Interactive = -not [bool]$Mode
 if($Mode){exit([int](-not(Act $Mode)))};Menu;exit 0
