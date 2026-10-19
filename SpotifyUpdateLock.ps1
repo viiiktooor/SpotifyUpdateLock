@@ -62,7 +62,7 @@ function Clear-State {
 # Concurrency / path safety
 function Enter-One {
     $script:M=[Threading.Mutex]::new($false,"Local\SpotifyUpdateLock-$($Sid.Value)")
-    try{$ok=$script:M.WaitOne(0)}catch[Threading.AbandonedMutexException]{$ok=$true}
+    try{$ok=$script:M.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ok=$true}
     if(!$ok){$script:M.Dispose();$script:M=$null}; $ok
 }
 function Exit-One {if($script:M){try{$script:M.ReleaseMutex()}catch{};$script:M.Dispose();$script:M=$null}}
@@ -92,7 +92,7 @@ function Exact-Rules($acl){
 function Lock-Rule {[Security.AccessControl.FileSystemAccessRule]::new($Sid,$Rights,$Inherit,$NoProp,$Deny)}
 function Write-Blocked {
     $p=Join-Path $UpdateDir ('.probe_'+[guid]::NewGuid().ToString('N'))
-    try{$f=[IO.File]::Create($p);$f.Dispose();Remove-Item $p -Force -ErrorAction SilentlyContinue;$false}catch[UnauthorizedAccessException]{$true}catch{$false}
+    try{$f=[IO.File]::Create($p);$f.Dispose();Remove-Item $p -Force -ErrorAction SilentlyContinue;$false}catch [UnauthorizedAccessException]{$true}catch{$false}
 }
 function Enable-Lock {
     if($script:SS -eq 'Corrupt'){throw 'State file is corrupt. Use UNLOCK -Force for filesystem recovery.'}
@@ -100,7 +100,7 @@ function Enable-Lock {
     if(!(Test-Path $UpdateDir)){New-Item -ItemType Directory $UpdateDir -Force|Out-Null;$script:S.createdUpdateDir=$true;Save-State}
     Assert-Paths; $acl=Get-Acl $UpdateDir; $exact=@(Exact-Rules $acl)
     if(!(Test-Path $Guard) -and !$exact){
-        try{$f=[IO.File]::Open($Guard,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$f.Dispose();$script:S.guardCreated=$true;Save-State}catch[IO.IOException]{}
+        try{$f=[IO.File]::Open($Guard,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$f.Dispose();$script:S.guardCreated=$true;Save-State}catch [IO.IOException]{}
     }
     if(!$exact){$acl.AddAccessRule((Lock-Rule));Set-Acl -Path $UpdateDir -AclObject $acl;$script:S.denyRuleAdded=$true;Save-State}
     if(!@(Exact-Rules (Get-Acl $UpdateDir))){throw 'Exact deny ACE is missing.'}; if(!(Write-Blocked)){throw 'Write probe was not blocked.'}
