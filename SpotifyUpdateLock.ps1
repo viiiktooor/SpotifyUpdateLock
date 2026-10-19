@@ -36,7 +36,7 @@ function Read-State {
     if(!(Test-Path $StateFile)){return @{Status='Missing';Data=(New-State);Version=0}}
     try{
         $j=Get-Content $StateFile -Raw|ConvertFrom-Json; if(!$j){throw 'empty'}
-        $v=0; if(![int]::TryParse([string]$j.stateVersion,[ref]$v)){throw 'version'}
+        $v=0; if(-not [int]::TryParse([string]$j.stateVersion,[ref]$v)){throw 'version'}
         if($v -gt $StateVer){return @{Status='Unsupported';Data=(New-State);Version=$v}}
         if($v -ne $StateVer){throw 'old version'}
         foreach($k in 'createdUpdateDir','denyRuleAdded','guardCreated'){
@@ -49,7 +49,7 @@ function Read-State {
     }catch{@{Status='Corrupt';Data=(New-State);Version=0}}
 }
 function Save-State {
-    New-Item -ItemType Directory $StateDir -Force|Out-Null; $script:S.stateVersion=$StateVer
+    New-Item -ItemType Directory -Path $StateDir -Force|Out-Null; $script:S.stateVersion=$StateVer
     $tmp="$StateFile.tmp.$PID"; $script:S|ConvertTo-Json|Set-Content $tmp -Encoding ASCII
     Move-Item $tmp $StateFile -Force; $script:SS='Valid'
 }
@@ -150,7 +150,7 @@ function Remove-FW {
 
 # Operations
 function Prepare {
-    HEAD 'PREPARE';Enable-Lock;if(!(Add-FW)){throw 'Temporary network block failed. Do not install the old build yet.'}
+    HEAD 'PREPARE';if(!(Stop-Spotify)){throw 'Spotify is already running or its path could not be confirmed. Close it manually and retry PREPARE.'};Enable-Lock;if(!(Add-FW)){throw 'Temporary network block failed. Do not install the old build yet.'}
     Write-Host 'Install the desired classic Spotify Desktop build, then choose LOCK.';$true
 }
 function Lock-Update {
@@ -169,7 +169,7 @@ function Unlock {
     HEAD 'UNLOCK';$force=[bool]$Force
     if($script:SS -ne 'Valid' -and !$force -and $script:Interactive){$force=(Read-Host 'Ownership unavailable. Use Force cleanup for exact ACE/guard? [y/N]')-match'^(y|yes)$'}
     if($script:SS -eq 'Corrupt' -and !$force){WARN 'Corrupt state: filesystem ownership unknown. Use UNLOCK -Force.';return $false}
-    if($script:SS -eq 'Valid' -and $script:S.firewallRuleName){try{if(Get-FW $script:S.firewallRuleName){[void](Stop-Spotify)}}catch{}}
+    if($script:SS -eq 'Valid' -and $script:S.firewallRuleName){try{$fwThere=[bool](Get-FW $script:S.firewallRuleName)}catch{$fwThere=$true};if($fwThere){[void](Stop-Spotify)}}
     $a=Disable-Lock $force;$f=Remove-FW
     if($script:SS -eq 'Corrupt'){WARN 'Corrupt state kept; inspect firewall group in STATUS before deleting it manually.';return $false}
     if($a -and $f){Clear-State;HEAD 'UNLOCK COMPLETE';return $true};WARN 'UNLOCK incomplete; state kept for retry.';$false
@@ -180,5 +180,5 @@ function Act($name){
 }
 function Menu {while($true){Clear-Host;Write-Host "Spotify Update Lock`n`n1 PREPARE  2 LOCK  3 STATUS  4 UNLOCK  5 EXIT";switch(Read-Host 'Choose'){1{[void](Act PREPARE)}2{[void](Act LOCK)}3{[void](Act STATUS)}4{[void](Act UNLOCK)}5{return}};[void](Read-Host 'Enter to continue')}}
 
-$script:Interactive=-not[bool]$Mode
+$script:Interactive = -not [bool]$Mode
 if($Mode){exit([int](-not(Act $Mode)))};Menu;exit 0
